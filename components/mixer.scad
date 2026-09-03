@@ -44,13 +44,13 @@ module mixer(size, lead=0, angle=45) {
 
 use <openmfda/components/orientation.scad>
 module p_mixer(xpos, ypos, zpos, orientation,
+                angle=45,
+                lead = 4,
                 px = 7.6e-3,
                 layer = 10e-3,
                 pitch=30,
                 chan_h=10, chan_w=14) {
     cross_section = [chan_h, chan_w];
-    angle = 45;
-    lead = 4;
     dimensions = mixer_dimensions(cross_section, lead, angle);
     pitch_offset = pitch - chan_w;
 
