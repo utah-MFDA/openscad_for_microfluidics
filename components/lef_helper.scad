@@ -95,7 +95,7 @@ module lef_port(port_name="", direction="", geometry="", pts=false, center=true,
             (pts*px),
             layer*(lpv-1),
             center=center,
-    px=px, layer=layer, lpv=lpv, chan_def=chan_def
+            px=px, layer=layer, lpv=lpv, chan_def=chan_def
           ) ;
       } else {
         color(port_clr1)
@@ -103,7 +103,7 @@ module lef_port(port_name="", direction="", geometry="", pts=false, center=true,
             (port_center + chan_centered)*px,
             layer_h*layer, // get channel height
             center=center,
-    px=px, layer=layer, lpv=lpv, chan_def=chan_def
+            px=px, layer=layer, lpv=lpv, chan_def=chan_def
           ) ;
         color(port_clr2, 0.6)
     lef_rect(
@@ -112,7 +112,7 @@ module lef_port(port_name="", direction="", geometry="", pts=false, center=true,
         pts[1]+via_w]*px,
             layer_h*(lpv-1),
             center=center,
-    px=px, layer=layer, lpv=lpv, chan_def=chan_def
+            px=px, layer=layer, lpv=lpv, chan_def=chan_def
           ) ;
       }
     }
