@@ -1,5 +1,71 @@
 use <orientation.scad>
+function interconnect_grid_dimensions(
+    xpos = 0,
+    ypos = 0,
+    zpos = 0,
+    orientation = "N",
+    gasket_side_length = 40,
+    gasket_aperture_length = 20,
+    gasket_height = 1,
 
+    gasket_grid = [4, 8],
+    block_gasket_offset = 155,
+    block_height_default = 200,
+    block_long_side = 600,
+    block_short_side = 399,
+    gasket_offset = 50,
+
+    pedestal_x = 780,
+    pedestal_y = 380,
+    pedestal_height = 100,
+
+    channel_width_thick = 20 ,
+    channel_width_default = 12,
+    px=7.6e-3, layer=10e-3, lpv=20, pitch=30 ) = [
+     block_short_side*2 + pedestal_x + block_gasket_offset + gasket_offset,
+     block_long_side,
+     pedestal_height
+];
+
+function interconnect_target(grid_coord,
+    xpos = 0,
+    ypos = 0,
+    zpos = 0,
+    orientation = "N",
+    gasket_side_length = 40,
+    gasket_aperture_length = 20,
+    gasket_height = 1,
+
+    gasket_grid = [4, 8],
+    block_gasket_offset = 155,
+    block_height_default = 200,
+    block_long_side = 600,
+    block_short_side = 399,
+    gasket_offset = 50,
+
+    pedestal_x = 780,
+    pedestal_y = 380,
+    pedestal_height = 100,
+
+    channel_width_thick = 20 ,
+    channel_width_default = 12,
+    px=7.6e-3, layer=10e-3, lpv=20, pitch=30 ) =
+        let (gasket_group_x_lenght = gasket_grid[1] * gasket_side_length + (gasket_grid[1]-1) * gasket_offset)
+        let (gasket_group_y_lenght = gasket_grid[0] * gasket_side_length + (gasket_grid[0]-1) * gasket_offset)
+        let (centering_offset = [gasket_group_x_lenght/2, gasket_group_y_lenght/2])
+        let (row = grid_coord.y)
+        let (col = grid_coord.x)
+        let (grid_position = [(gasket_side_length + gasket_offset)*row,
+         (gasket_side_length + gasket_offset)*col, 0])
+        let (block_start = [block_short_side + block_gasket_offset, block_gasket_offset, 0])
+        let (dimensions = interconnect_grid_dimensions()/2)
+        let (center = [dimensions.x, dimensions.y,0])
+
+     [
+        grid_position + block_start - center + [23, 10, 0],
+        [0,0,-1],
+        [0,1,0]
+    ];
 module interconnect_grid(
     xpos = 0,
     ypos = 0,
