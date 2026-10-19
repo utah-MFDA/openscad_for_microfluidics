@@ -13,8 +13,8 @@ function resistor_dimensions(blocks, major_channel, minor_channel, eps) =
 
 function resistor_ports(blocks, major_channel, minor_channel, eps) =
     let (dimensions = resistor_dimensions(blocks, major_channel, minor_channel, eps))
-    let (anchor_in = [[0, -dimensions.y/2, dimensions.z/2], [0,-1,0], [0,0,1]])
-    let (anchor_out = [[0, dimensions.y/2, dimensions.z/2], [0,1,0], [0,0,1]])
+    let (anchor_in = [[dimensions.x/2, 0, dimensions.z/2], [0,-1,0], [0,0,1]])
+    let (anchor_out = [[dimensions.x/2, dimensions.y, dimensions.z/2], [0,1,0], [0,0,1]])
     [anchor_in, anchor_out];
 
 module resistor(blocks = default_blocks,
@@ -35,7 +35,8 @@ module resistor(blocks = default_blocks,
             ["cube", minor, minor_length, foo],
             ["cube", major, -offset_dir, foo],
             ["cube", major, major_length, foo],
-        ];
+    ];
+
     translate([0, eps/2,0])
     color("RosyBrown") {
         params_pos_relative = concat(
@@ -54,8 +55,8 @@ module resistor(blocks = default_blocks,
 
 module p_resistor(xpos, ypos, zpos, orientation="N",
     numblocks = 1, wchan = 14, hchan = 10, w3chan = 6, h3chan = 5, lenchan = 5,
-    eps = 1e-2, edge_offset=5,
-    px=7.6e-3, layer=10e-3, lpv=20, pitch=30, chan_def=[10, 14])
+        eps = 1e-2, edge_offset=5,
+        px=7.6e-3, layer=10e-3, lpv=20, pitch=30, chan_def=[10, 14])
 
 {
     major_channel = [wchan, hchan, lenchan];

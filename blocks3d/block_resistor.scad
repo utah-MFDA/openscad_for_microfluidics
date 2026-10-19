@@ -1,6 +1,6 @@
 include <BOSL2/std.scad>
 include <ports.scad>
-include <components/resistor.scad>
+include <../components/resistor.scad>
 
 module block_resistor(flow_in, flow_out, port_config,
                       blocks = 1,

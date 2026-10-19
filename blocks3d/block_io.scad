@@ -1,4 +1,4 @@
-include <components/interconnect.scad>
+include <../components/interconnect.scad>
 include <ports.scad>
 include <BOSL2/std.scad>
 

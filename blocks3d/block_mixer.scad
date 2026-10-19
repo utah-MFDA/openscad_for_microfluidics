@@ -1,6 +1,6 @@
 include <BOSL2/std.scad>
 include <ports.scad>
-include <components/mixer.scad>
+include <../components/mixer.scad>
 
 module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=undef)
 {

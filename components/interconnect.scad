@@ -197,12 +197,17 @@ module interconnect_grid(
     width = block_short_side*2 + pedestal_x + block_gasket_offset + gasket_offset;
     height = block_long_side;
 
-    scale([px, px, layer])
-    translate([xpos, ypos, zpos])
-    orient([width, height], orientation)
-    translate([width, height, 0]/2)
-    obj();
+    // scale([px, px, layer])
+    // translate([2560, 1600, 0]/2)
+    // translate([xpos, ypos, zpos])
+    // orient([width, height], orientation)
 
+    // translate([width, height, 0]/2)
+    obj();
+    // for (row = [0:3], col=[0:7])
+    //     translate(interconnect_target([row, col]).x)
+    //     translate([1,0,0])
+    //     color("pink")
+    //     %cube([21, 20, 20], center=true);
 }
 
-interconnect_grid();
