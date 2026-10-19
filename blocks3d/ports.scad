@@ -340,34 +340,34 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
         generic_path(shape, start, end, debug=debug);
     } else if (above && !left) {
         start2 = [start[0], start[1], -basis.z];
-        corner = [faces.y + basis.z * margin + faces.z,
+        corner = [v_mul(start[0], [1,1,0]) + basis.z * margin + faces.z,
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start2, corner, debug=debug);
         corner2 = [corner[0], -corner[1], basis.z];
         generic_path(shape, corner2, end, debug=debug);
     } else if (below && !right) {
-        corner = [faces.y - (basis.z * margin + faces.z),
+        corner = [v_mul(start[0], [1,1,0]) - (basis.z * margin + faces.z),
                     margin*basis.y,
-                    basis.y];
+                    -basis.z];
         generic_path(shape, start, corner, debug=debug);
         corner2 = [corner[0], -corner[1], basis.z];
         generic_path(shape, corner2, end, debug=debug);
     } else if (right && !above) {
-        corner = [faces.y + (basis.x * margin + faces.x),
+        corner = [v_mul(start[0], [0,1,1]) + (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start, corner, debug=debug);
         generic_path(shape, port_mirror(corner), end, debug=debug);
     } else if (left && !below) {
-        corner = [faces.y - (basis.x * margin + faces.x),
+        corner = [v_mul(start[0], [0,1,1]) - (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start, corner, debug=debug);
         generic_path(shape, port_mirror(corner), end, debug=debug);
     } else if (behind) {
         // completely behind, get around the back corner as well
-        corner = [faces.y + (basis.x * margin + faces.x),
+        corner = [v_mul(start[0], [0,1,1]) + (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start, corner, debug=debug);

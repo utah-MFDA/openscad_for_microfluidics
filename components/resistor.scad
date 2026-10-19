@@ -20,7 +20,7 @@ function resistor_ports(blocks, major_channel, minor_channel, eps) =
 module resistor(blocks = default_blocks,
                 major_channel = default_major_channel,
                 minor_channel = default_minor_channel,
-                offset = 4,
+                offset = 8,
                 eps = default_eps)
 {
     minor = [minor_channel.x, eps, minor_channel.y];
@@ -45,8 +45,8 @@ module resistor(blocks = default_blocks,
                 ["cube", major, major_length, foo],
             ],
             [ for (i = [0:blocks-1]) each
-                let (offset = (i % 2 ? -1 : 1)*offset_array)
-                block_dimensions(offset)
+                let (offset_dir = (i % 2 ? -1 : 1)*offset_array)
+                block_dimensions(offset_dir)
             ]
         );
         polychannel(params_pos_relative);

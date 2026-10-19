@@ -6,6 +6,7 @@ module block_resistor(flow_in, flow_out, port_config,
                       blocks = 1,
                       major_channel = [30, 30, 5],
                       minor_channel = [10,10, 5],
+                      offset=2,
                       eps=1e-2,
                       sharpness = 20,
                       angle=undef)
@@ -51,7 +52,7 @@ module block_resistor(flow_in, flow_out, port_config,
 
         rotate([0, 0, angle])
         translate(-center_offset)
-        resistor(blocks, major_channel, minor_channel, eps);
+        resistor(blocks, major_channel, minor_channel, offset=offset, eps=eps);
 
         // center and rotate relative to origin
         component_in_rot = port_rotate_xy(angle, port_translate(-center_offset, component_in));

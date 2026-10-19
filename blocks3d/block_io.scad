@@ -13,16 +13,20 @@ module block_pinhole(connections, diameter, depth, cone, port_config, orientatio
     assert(norm(orientation) == 1 && (orientation.x == 1 || orientation.y == 1 || orientation.z == 1));
 
     translate([1,1,1]*width/2) {
+        if (struct_val(port_config, "show_boundary")) {
+            %cube(width, center=true);
+        }
         rotate(v_mul(orientation, [90, 90, orientation.z < 1 ? 180: 0]))  {
             union(){
-                translate([0, 0, depth/2])
+                translate([0, 0, width-depth]/2)
                 cylinder(d = diameter, h = depth, center=true);
-                translate([0, 0, -cone/2])
+                translate([0, 0, width/2-depth-cone/2])
                 cylinder(h = cone, d1 = norm(size), d2 = diameter, center=true);
             };
         }
         for (connection = connections) {
-            hole_target = [orientation*(width/2 - depth - cone), -orientation, connection];
+            normal = connection != [0,0,-1] ? connection : [-1,0,0];
+            hole_target = [orientation*(width/2 - depth - cone), -orientation, normal];
             assert(is_flow_port(connection));
             fluid_line_input_junction(connection, port_config);
             target = fluid_line_input_target(connection, port_config);
