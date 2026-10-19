@@ -2,7 +2,7 @@ include <BOSL2/std.scad>
 include <ports.scad>
 include <../components/mixer.scad>
 
-module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=undef)
+module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=undef, debug = false)
 {
     // Parameter checks
     assert(is_flow_port(input_a));
@@ -11,15 +11,15 @@ module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=un
     assert(is_struct(port_config));
 
     // Constants and configuration
-    width = struct_val(port_config, "width");
+    cell_dimensions = struct_val(port_config, "cell_dimensions");
     size = struct_val(port_config, "flow_cross_section");
     min_thick = struct_val(port_config, "minimum_thickness");
-    debug = struct_val(port_config, "debug");
+    debug = struct_val(port_config, "debug") || debug;
     lead=4;
     mixer_angle=45;
     dimensions = mixer_dimensions(size, lead, mixer_angle);
     center_offset = dimensions * diagonal([1,1,0]/2);
-    center = width/2 * [1,1,1];
+    center = cell_dimensions/2;
 
     // minimize the angles between component and exterior ports.
     component_ports = mixer_ports(size, lead, mixer_angle);
@@ -48,13 +48,13 @@ module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=un
                                 port_translate(-center_offset,
                                     component_port));
         offset = norm(size) + min_thick;
-        fluid_line(square(size, center=true), offset, dimensions, external_port, component, sharpness);
+        fluid_line(square(size, center=true), offset, dimensions, external_port, component, sharpness, debug=debug);
     }
 
     translate(center) {
         // outer boundary
         if (struct_val(port_config, "show_boundary")) {
-            %cube(width, center=true);
+            %cube(cell_dimensions, center=true);
         }
         rotate([0,0,angle])
         translate(-center_offset)
@@ -76,6 +76,3 @@ module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=un
         }
     }
 }
-
-config = create_port_config(show_boundary=true, debug=true);
-block_mixer([0,1,1], [-1,-1,0], [0,1,-1], angle=0, port_config=config);

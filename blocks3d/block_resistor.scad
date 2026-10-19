@@ -17,16 +17,16 @@ module block_resistor(flow_in, flow_out, port_config,
     assert(is_struct(port_config));
 
     // Constants and configuration
-    width = struct_val(port_config, "width");
+    cell_dimensions = struct_val(port_config, "cell_dimensions");
     size = struct_val(port_config, "flow_cross_section");
     min_thick = struct_val(port_config, "minimum_thickness");
     dimensions = resistor_dimensions(blocks, major_channel, minor_channel, eps);
-    if (dimensions[0] > width || dimensions[1] > width || dimensions[2] > width)
-         echo("WARN Internal resistor dimensions greater than width",
-                 dimensions, width);
+    if (dimensions.x > cell_dimensions.x || dimensions.y > cell_dimensions.y || dimensions.z > cell_dimensions.z)
+         echo("WARN Internal resistor dimensions greater than cell size",
+                 dimensions, cell_dimensions);
 
     center_offset = dimensions/2;
-    center = width/2 * [1,1,1];
+    center = cell_dimensions/2;
     debug = struct_val(port_config, "debug");
 
     // calculate ports and minimize the angle between exterior and component ports.
@@ -47,7 +47,7 @@ module block_resistor(flow_in, flow_out, port_config,
     translate(center) {
         // outer boundary
         if (struct_val(port_config, "show_boundary")) {
-            %cube(width, center=true);
+            %cube(cell_dimensions, center=true);
         }
 
         rotate([0, 0, angle])
@@ -86,11 +86,3 @@ module block_resistor(flow_in, flow_out, port_config,
             // }
     }
 }
-debug = true;
-// debug = false;
-width = 150;
-config = create_port_config(width=width, debug=debug, show_boundary=true, minimum_thickness=5);
-block_resistor([0,0,1], [-1,0,0], minor_channel=[5,5,20], blocks = 2, angle=45, sharpness=20, port_config=config);
-
-translate([width,0,0])
-block_resistor([0,0,1], [1,0,1], minor_channel=[5,5,20], blocks = 1, angle=0, port_config=config);

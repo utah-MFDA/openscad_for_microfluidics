@@ -1,6 +1,6 @@
 include <BOSL2/std.scad>
 
-// width = struct_val(port_config, "width");
+// cell_dimensions = struct_val(port_config, "cell_dimensions");
 // port_io_offset = struct_val(port_config, "io_offset");
 // port_collision_offset = struct_val(port_config, "collision_offset");
 // port_flow_cross_section = struct_val(port_config, "flow_cross_section");
@@ -11,7 +11,7 @@ include <BOSL2/std.scad>
 // debug_center = struct_val(port_config, "debug_center");
 
 function create_port_config(
-    width = 80,
+    cell_dimensions = [80, 80, 80],
     io_offset = 3,
     collision_offset = [3, 5],
     flow_cross_section = [4,8],
@@ -22,7 +22,7 @@ function create_port_config(
     debug = false,
     debug_center=true,
     show_boundary=false) = struct_set([], [
-    "width", width,
+    "cell_dimensions", cell_dimensions,
     "io_offset", io_offset,
     "collision_offset", collision_offset,
     "flow_cross_section", flow_cross_section,
@@ -166,7 +166,7 @@ function fluid_line_output_target(port, port_config, min_length=2) =
 // This is the point that defines the junction connection point where cells should attach lines.
 function fluid_line_target(port, io, port_config, min_length=2) =
     let (size = struct_val(port_config, "flow_cross_section"))
-    let (width = struct_val(port_config, "width"))
+    let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
     let (io_offset = struct_val(port_config, "io_offset"))
     let (collision_offset = struct_val(port_config, "collision_offset"))
     let (target = fluid_line_target_raw(port, io, port_config))
@@ -177,27 +177,26 @@ function fluid_line_target(port, io, port_config, min_length=2) =
     [target[0] + (min_length + length) * unit(target[1]), target[1], target[2]];
 
 function round_div2(io, v) = (io*v + v%2)/2;
-// This is the point where fluid lines from different cells meet.
+// This is the point where fluid lines from different cell_dimensionss meet.
 function fluid_line_target_raw(port, io, port_config) =
     assert(is_flow_port(port))
     assert(abs(io) == 1)
     assert(!is_undef(port_config))
-    let (width = struct_val(port_config, "width"))
+    let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
     let (size = struct_val(port_config, "flow_cross_section"))
     let (io_offset = struct_val(port_config, "io_offset"))
-    let (collision_dir = port.x*port.y)
     let (collision_offset = struct_val(port_config, "collision_offset"))
     let (is_top = (norm(port) == 1 && (port.z != 0)))
-    let (base = width/2 * port)
+    let (base = v_mul(cell_dimensions/2, port))
     let (angle = atan2(port.y, port.x))
     let (io_spacing = io_offset == 0 ? 0
-                        : io_offset/2 + size.x/2)
-    let (collision_spacing = [ (size.x + collision_offset.x)/2,
-                                (size.y + collision_offset.y)/2 ])
-    let (offset = ((1+io)*io_spacing + collision_spacing.x)*port.z)
+                        : (io_offset + size.x)/2)
+    let (collision_spacing = [ port.z*(size.x + collision_offset.x)/2,
+                                port.x*port.y*(size.y + collision_offset.y)/2 ])
+    let (offset = io_spacing + collision_spacing.x)
     let (side = [offset*cos(90 + angle),
                  offset*sin(90 + angle),
-                 collision_spacing.y*collision_dir])
+                 collision_spacing.y])
     let (top = [0, io_spacing*port.z, 0])
     let (target_offset = is_top ? top : side)
     let (target = base + target_offset)
@@ -210,7 +209,7 @@ function control_line_target(face, offset, port_config) =
     port_translate(2*port_tangent(on_face), on_face);
 
 function control_line_target_raw(face, offset, port_config) =
-    let (width = struct_val(port_config, "width"))
+    let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
     let (top_spacing = struct_val(port_config, "top_spacing"))
     let (side_spacing = struct_val(port_config, "side_spacing"))
     let (spacing = width * (face.z != 0 ? top_spacing : side_spacing))
@@ -233,9 +232,9 @@ function control_line_target_raw(face, offset, port_config) =
 
 module port_demonstrator(port_config)
 {
-    width = struct_val(port_config, "width");
+    cell_dimensions = struct_val(port_config, "cell_dimensions");
 
-    %cube(width, center=true);
+    %cube(cell_dimensions, center=true);
     for (i = [-1:1], j = [-1:1], k = [-1:1], m = [-1,1]) {
         p = [i, j, k];
         if (p != [0,0,0]) {
@@ -244,10 +243,10 @@ module port_demonstrator(port_config)
         }
     }
 
-    for (i = [-1,1], j = [[0,0,i], [0,i,0], [i,0,0]], m = [-1,1], n = [-1,1]) {
-        color("orange")
-        control_line_junction(j, [m,n], port_config);
-    }
+    // for (i = [-1,1], j = [[0,0,i], [0,i,0], [i,0,0]], m = [-1,1], n = [-1,1]) {
+    //     color("orange")
+    //     control_line_junction(j, [m,n], port_config);
+    // }
 
 }
 
@@ -257,7 +256,7 @@ function posang(a) = (modang(a) + 360) % 360;
 function minimize_angle(ports, anchors, port_config) =
     // BOSL2 likes to use +-180, but stripping the sign to only positive removes
     // problems when crossing the boundary
-    let (width = struct_val(port_config, "width"))
+    let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
     let (port_angles = [for (port = ports)
                             let (a = port_position(port))
                             posang(atan2(a.y, a.x))])

@@ -25,7 +25,7 @@ module block_valve(
 )
 {
     // Configuration
-    width = struct_val(port_config, "width");
+    cell_dimensions = struct_val(port_config, "cell_dimensions");
     port_io_offset = struct_val(port_config, "io_offset");
     port_flow_cross_section = struct_val(port_config, "flow_cross_section");
     port_control_cross_section = struct_val(port_config, "control_cross_section");
