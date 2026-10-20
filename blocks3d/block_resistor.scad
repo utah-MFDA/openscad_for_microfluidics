@@ -9,7 +9,8 @@ module block_resistor(flow_in, flow_out, port_config,
                       offset=2,
                       eps=1e-2,
                       sharpness = 20,
-                      angle=undef)
+                      angle=undef,
+                      debug=false)
 {
     // Parameter checks
     assert(is_flow_port(flow_in));
@@ -27,12 +28,12 @@ module block_resistor(flow_in, flow_out, port_config,
 
     center_offset = dimensions/2;
     center = cell_dimensions/2;
-    debug = struct_val(port_config, "debug");
+    debug = debug || struct_val(port_config, "debug");
 
     // calculate ports and minimize the angle between exterior and component ports.
     component_ports = resistor_ports(blocks, major_channel, minor_channel, eps);
-    component_in = component_ports[0];
-    component_out = component_ports[1];
+    component_in = port_translate(-center_offset, component_ports[0]);
+    component_out = port_translate(-center_offset, component_ports[1]);
 
     exterior_in = fluid_line_input_target(flow_in, port_config);
     exterior_out = fluid_line_output_target(flow_out, port_config);
@@ -54,35 +55,23 @@ module block_resistor(flow_in, flow_out, port_config,
         translate(-center_offset)
         resistor(blocks, major_channel, minor_channel, offset=offset, eps=eps);
 
-        // center and rotate relative to origin
-        component_in_rot = port_rotate_xy(angle, port_translate(-center_offset, component_in));
-        component_out_rot = port_rotate_xy(angle, port_translate(-center_offset, component_out));
-
         shape = square(size, center=true);
+        margin = norm(size) + min_thick;
+
         color("mediumpurple")
         fluid_line_input_junction(flow_in, port_config);
-        offset = norm(size) + min_thick;
 
         color("purple")
-        fluid_line(shape, offset, dimensions, exterior_in, component_in_rot, sharpness);
+        fluid_line(shape, margin, dimensions, exterior_in,
+                   port_rotate_xy(angle, component_in),
+                   sharpness, debug=debug);
 
         color("blue")
-        fluid_line(shape, offset, dimensions, exterior_out, component_out_rot, sharpness);
+        fluid_line(shape, margin, dimensions, exterior_out,
+                   port_rotate_xy(angle, component_out),
+                   sharpness, debug=debug);
 
         color("skyblue")
         fluid_line_output_junction(flow_out, port_config);
-
-        //
-
-            // for (i = [-1:1], j = [-1:1], k = [-1:1]) {
-            //     port = [i,j,k];
-            //     if (port != [0,0,0]) {
-            //         color("mediumpurple")
-            //         fluid_line_input_junction(port, port_config);
-            //         side = fluid_line_input_target(port, port_config);
-            //         color("purple")
-            //         fluid_line(port, side, component_out);
-            //     }
-            // }
     }
 }

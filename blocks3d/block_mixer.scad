@@ -22,7 +22,8 @@ module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=un
     center = cell_dimensions/2;
 
     // minimize the angles between component and exterior ports.
-    component_ports = mixer_ports(size, lead, mixer_angle);
+    component_ports = [for (c = mixer_ports(size, lead, mixer_angle))
+                        port_translate(-center_offset, c)];
     exterior_ports = [
         fluid_line_input_target(input_a, port_config),
             // Configuration
@@ -42,13 +43,11 @@ module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=un
     b_offset = modang(port_angles[1] - port_angles[2]);
     // flip = a_offset < b_offset;
     flip=0;
+    margin = norm(size) + min_thick;
     // Geometry
     module mixer_fluid_line(external_port, component_port)    {
-        component = port_rotate_xy(angle,
-                                port_translate(-center_offset,
-                                    component_port));
-        offset = norm(size) + min_thick;
-        fluid_line(square(size, center=true), offset, dimensions, external_port, component, sharpness, debug=debug);
+        component = port_rotate_xy(angle, component_port);
+        fluid_line(square(size, center=true), margin, dimensions, external_port, component, sharpness, debug=debug);
     }
 
     translate(center) {

@@ -315,6 +315,7 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
     // this assumes that the face vector is perpendicular to the component face plane
     face = port_tangent(component_target);
     orientation = port_normal(component_target);
+
     // create a basis relative to the orientation of the component
     basis = [cross(face, orientation), face, orientation];
     faces = [basis.x*dimensions.x/2, basis.y*dimensions.y/2, basis.z*dimensions.z/2];
@@ -339,34 +340,34 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
         generic_path(shape, start, end, debug=debug);
     } else if (above && !left) {
         start2 = [start[0], start[1], -basis.z];
-        corner = [v_mul(start[0], [1,1,0]) + basis.z * margin + faces.z,
+        corner = [start[0] + basis.z * margin + faces.z,
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start2, corner, debug=debug);
         corner2 = [corner[0], -corner[1], basis.z];
         generic_path(shape, corner2, end, debug=debug);
     } else if (below && !right) {
-        corner = [v_mul(start[0], [1,1,0]) - (basis.z * margin + faces.z),
+        corner = [start[0] - (basis.z * margin + faces.z),
                     margin*basis.y,
                     -basis.z];
         generic_path(shape, start, corner, debug=debug);
         corner2 = [corner[0], -corner[1], basis.z];
         generic_path(shape, corner2, end, debug=debug);
     } else if (right && !above) {
-        corner = [v_mul(start[0], [0,1,1]) + (basis.x * margin + faces.x),
+        corner = [start[0] + (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start, corner, debug=debug);
         generic_path(shape, port_mirror(corner), end, debug=debug);
     } else if (left && !below) {
-        corner = [v_mul(start[0], [0,1,1]) - (basis.x * margin + faces.x),
+        corner = [start[0] - (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start, corner, debug=debug);
         generic_path(shape, port_mirror(corner), end, debug=debug);
     } else if (behind) {
         // completely behind, get around the back corner as well
-        corner = [v_mul(start[0], [0,1,1]) + (basis.x * margin + faces.x),
+        corner = [start[0] + (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start, corner, debug=debug);
