@@ -301,11 +301,8 @@ function path_bezier(start, end) =
        port_position(end) + port_tangent(end),
        port_position(end)];
 
-module generic_path(shape, start, end, splinesteps=16, debug=false, clamp_tangent=false) {
-    clamped = clamp_tangent ? path_clamp(start, end) : [start, end];
-    start_clamped = clamped.x;
-    end_clamped = clamped.y;
-    control = path_bezier(start_clamped, end_clamped);
+module generic_path(shape, start, end, splinesteps=16, debug=false) {
+    control = path_bezier(start, end);
     if (debug) debug_bezier(control, N=len(control)-1);
     else bezier_sweep(shape, control, splinesteps=splinesteps,
                       normal=port_normal(start), last_normal=port_normal(end));
