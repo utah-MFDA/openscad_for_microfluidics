@@ -20,8 +20,8 @@ function create_port_config(
     side_spacing = [1/4, 1/4],
     minimum_thickness = 4,
     debug = false,
-    debug_center=true,
-    show_boundary=false) = struct_set([], [
+    show_boundary=false,
+    intersect_test=false) = struct_set([], [
     "cell_dimensions", cell_dimensions,
     "io_offset", io_offset,
     "collision_offset", collision_offset,
@@ -30,9 +30,9 @@ function create_port_config(
     "top_spacing", top_spacing,
     "side_spacing", side_spacing,
     "debug", debug,
-    "debug_center", debug_center,
     "show_boundary", show_boundary,
-    "minimum_thickness", minimum_thickness
+    "minimum_thickness", minimum_thickness,
+    "intersect_test", intersect_test
 ]);
 
 function diagonal(v) = [
@@ -244,27 +244,37 @@ module port_demonstrator(port_config)
     }
 
     // for (i = [-1,1], j = [[0,0,i], [0,i,0], [i,0,0]], m = [-1,1], n = [-1,1]) {
-    //     color("orange")
+    //     color("orange")kkkkkkkkkkkkkkk
     //     control_line_junction(j, [m,n], port_config);
     // }
 
 }
 
+// BOSL2 likes to use +-180, but stripping the sign to only positive
+// can remove problems when crossing the boundary
+function posang(a) = (modang(a) + 360) % 360;
+
 // Least squares regression on a single variable is the arithmetic mean
 // This minimizes the angle alignment between the component and exterior ports.
-function posang(a) = (modang(a) + 360) % 360;
 function minimize_angle(ports, anchors, port_config) =
-    // BOSL2 likes to use +-180, but stripping the sign to only positive removes
-    // problems when crossing the boundary
     let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
+    // atan2 returns 0 if x=y=0, (top and bottom faces) which is
+    // undefined, not sure what to do about it.
     let (port_angles = [for (port = ports)
                             let (a = port_position(port))
-                            posang(atan2(a.y, a.x))])
+                            atan2(a.y, a.x)])
     let (anchor_angles = [for (anchor = anchors)
                             let (a = port_position(anchor))
-                            posang(atan2(a.y, a.x))])
-    let (diff = port_angles - anchor_angles)
-    modang(180+sum(diff)/len(diff));
+                            atan2(a.y, a.x)])
+    let (diff = [for (a = port_angles - anchor_angles) modang(a)])
+    // If there are two points opposite each other the magnitude of each
+    // is larger but the regression cancels out and you get zero, and
+    // the angle is flipped.
+    echo(diff)
+    let (stuck = (max(diff) - min(diff)) > 180 ? 180 : 0)
+    let (solve = linear_solve(transpose([repeat(1, len(ports))]),
+                              transpose([diff])))
+    solve[0][0] + stuck;
 
 module segment_path(size, delta) {
     assert(len(delta) >= 1);
@@ -315,7 +325,7 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
 
     // create a basis relative to the orientation of the component
     basis = [cross(face, orientation), face, orientation];
-    faces = [basis.x*dimensions.x/2, basis.y*dimensions.y/2, basis.z*dimensions.z/2];
+    faces = v_mul(basis, dimensions)/2;
 
     // setup endpoint
     exterior = port_position(exterior_target);
@@ -323,19 +333,21 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
 
     // check if external port lies above the face planes
     // inner product of the normal to the plane and the offset vector from normal origin
-    front = basis.y * (exterior - faces.y) > 0;
-    behind = -basis.y * (exterior + faces.y) > 0;
-    above = basis.z * (exterior - faces.z) > 0;
-    below = -basis.z * (exterior + faces.z) > 0;
-    right = basis.x * (exterior - faces.x) > 0;
-    left = -basis.x * (exterior + faces.x) > 0;
+    front = basis.y * (exterior - (faces.y + basis.y*margin)) > 0;
+    behind = -basis.y * (exterior + (faces.y + basis.y * margin)) > 0;
+    above = basis.z * (exterior - (faces.z + basis.z * margin)) > 0;
+    below = -basis.z * (exterior + (faces.z + basis.z * margin)) > 0;
+    right = basis.x * (exterior - (faces.x + basis.x * margin)) > 0;
+    left = -basis.x * (exterior + (faces.x + basis.x * margin)) > 0;
 
-    start = port_tangent_scale(margin, component_target);
+    start = port_tangent_scale(2*margin, component_target);
+
 
     if (front) {
         start = port_tangent_scale(sharpness, component_target);
         generic_path(shape, start, end, debug=debug);
-    } else if (above && !left) {
+    } else if (above) {
+    // } else if (above && !left) {
         start2 = [start[0], start[1], -basis.z];
         corner = [start[0] + basis.z * margin + faces.z,
                     margin*basis.y,
@@ -343,20 +355,23 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
         generic_path(shape, start2, corner, debug=debug);
         corner2 = [corner[0], -corner[1], basis.z];
         generic_path(shape, corner2, end, debug=debug);
-    } else if (below && !right) {
+    } else if (below) {
+    // } else if (below && !right) {
         corner = [start[0] - (basis.z * margin + faces.z),
                     margin*basis.y,
                     -basis.z];
         generic_path(shape, start, corner, debug=debug);
         corner2 = [corner[0], -corner[1], basis.z];
         generic_path(shape, corner2, end, debug=debug);
-    } else if (right && !above) {
+    } else if (right) {
+    // } else if (right && !above) {
         corner = [start[0] + (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];
         generic_path(shape, start, corner, debug=debug);
         generic_path(shape, port_mirror(corner), end, debug=debug);
-    } else if (left && !below) {
+    } else if (left) {
+    // } else if (left && !below) {
         corner = [start[0] - (basis.x * margin + faces.x),
                     margin*basis.y,
                     basis.z];

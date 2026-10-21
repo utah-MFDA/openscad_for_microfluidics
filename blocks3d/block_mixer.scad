@@ -1,77 +1,133 @@
 include <BOSL2/std.scad>
 include <ports.scad>
 include <../components/mixer.scad>
+function reorder_inputs(y, a, b) =
+    let (ports = [y, a, b])
+    let (base = atan2(port_position(y).y, port_position(y).x))
+    let (angles = [for (port = ports)
+                    let (p = port_position(port))
+                    posang(atan2(p.y, p.x) - base)])
+    [for (i = sortidx(angles)) ports[i]];
 
-module block_mixer(input_a, input_b, output, port_config, sharpness=20, angle=undef, debug = false)
+module block_mixer(input_a, input_b, output, port_config, mixer_angle=45, mixer_lead=4, sharpness=20, angle=undef, debug = false)
 {
     // Parameter checks
     assert(is_flow_port(input_a));
     assert(is_flow_port(input_b));
     assert(is_flow_port(output));
-    assert(is_struct(port_config));
+    assert(input_b != input_a);
+    assert(input_b != input_a);
+
+    io_offset = struct_val(port_config, "io_offset");
+    assert(io_offset > 0 || (input_b != output && input_a != output));
 
     // Constants and configuration
     cell_dimensions = struct_val(port_config, "cell_dimensions");
     size = struct_val(port_config, "flow_cross_section");
     min_thick = struct_val(port_config, "minimum_thickness");
+    margin = norm(size) + min_thick;
     debug = struct_val(port_config, "debug") || debug;
-    lead=4;
-    mixer_angle=45;
-    dimensions = mixer_dimensions(size, lead, mixer_angle);
+    intersect_test = struct_val(port_config, "intersect_test");
+
+    dimensions = mixer_dimensions(size, mixer_lead, mixer_angle);
     center_offset = dimensions * diagonal([1,1,0]/2);
     center = cell_dimensions/2;
-
     // minimize the angles between component and exterior ports.
-    component_ports = [for (c = mixer_ports(size, lead, mixer_angle))
+    component_ports = [for (c = mixer_ports(size, mixer_lead, mixer_angle))
                         port_translate(-center_offset, c)];
-    exterior_ports = [
-        fluid_line_input_target(input_a, port_config),
-            // Configuration
-        fluid_line_input_target(input_b, port_config),
-        fluid_line_output_target(output, port_config)
-    ];
+
+    // swap order of inputs so that the order is counter-clockwise to match mixer order
+    output_target = fluid_line_output_target(output, port_config);
+    target_a = fluid_line_input_target(input_a, port_config);
+    target_b = fluid_line_input_target(input_b, port_config);
+    exterior_ports = reorder_inputs(output_target, target_a, target_b);
+
     minim_angle = minimize_angle(exterior_ports, component_ports, port_config);
-    angle = (is_undef(angle) ? minim_angle : angle);
+    round = 1;
+    round_angle = modang(round(posang(minim_angle)/round)*round);
+    use_angle = (is_undef(angle) ? round_angle : angle);
 
-    // swap order of inputs so that the order is clockwise to match mixer order
-    port_angles = [for (port = exterior_ports)
-                    let (p = port_position(port))
-
-                    // Parameter checking
-                    atan2(p.y, p.x)];
-    a_offset = modang(port_angles[0] - port_angles[2]);
-    b_offset = modang(port_angles[1] - port_angles[2]);
-    // flip = a_offset < b_offset;
-    flip=0;
-    margin = norm(size) + min_thick;
     // Geometry
     module mixer_fluid_line(external_port, component_port)    {
-        component = port_rotate_xy(angle, component_port);
+        component = port_rotate_xy(use_angle, component_port);
         fluid_line(square(size, center=true), margin, dimensions, external_port, component, sharpness, debug=debug);
     }
 
-    translate(center) {
-        // outer boundary
-        if (struct_val(port_config, "show_boundary")) {
-            %cube(cell_dimensions, center=true);
-        }
-        rotate([0,0,angle])
-        translate(-center_offset)
-        mixer(size, lead, mixer_angle);
+    module inner_in_a()
+    {
+        color("mediumpurple")
+        fluid_line_input_junction(input_a, port_config);
 
-        color("mediumpurple") {
-            fluid_line_input_junction(input_a, port_config);
-            fluid_line_input_junction(input_b, port_config);
-        }
-        color("purple") {
-            mixer_fluid_line(exterior_ports[flip ? 1 : 0], component_ports[0]);
-            mixer_fluid_line(exterior_ports[flip ? 0 : 1], component_ports[1]);
-        }
-        color("skyblue") {
-            fluid_line_output_junction(output, port_config);
-        }
-        color("blue") {
-            mixer_fluid_line(exterior_ports[2], component_ports[2]);
+        color("purple")
+        mixer_fluid_line(exterior_ports[1], component_ports[1]);
+    }
+
+    module inner_in_b()
+    {
+        color("mediumpurple")
+        fluid_line_input_junction(input_b, port_config);
+
+        color("purple")
+        mixer_fluid_line(exterior_ports[2], component_ports[2]);
+    }
+
+    module inner_out()
+    {
+        color("skyblue")
+        fluid_line_output_junction(output, port_config);
+
+        color("blue")
+        mixer_fluid_line(exterior_ports[0], component_ports[0]);
+    }
+
+    module inner_mixer()
+    {
+        rotate([0,0,use_angle])
+        translate(-center_offset)
+        mixer(size, mixer_lead, mixer_angle);
+    }
+
+    translate(center) {
+        // This is gross to embed, but not really a better place to put it
+        // with the needed scope closure
+        if (intersect_test) {
+            intersection() {
+                inner_in_b();
+                inner_in_a();
+            }
+            intersection() {
+                inner_in_b();
+                inner_out();
+            }
+            intersection() {
+                inner_in_b();
+                round = 45;
+                inner_mixer();
+            }
+            intersection() {
+                inner_in_a();
+                inner_out();
+            }
+            intersection() {
+                inner_in_a();
+                round = 45;
+                inner_mixer();
+            }
+            intersection() {
+                inner_out();
+                round = 45;
+                inner_mixer();
+            }
+        } else {
+            // outer boundary
+            if (struct_val(port_config, "show_boundary")) {
+                %cube(cell_dimensions, center=true);
+            }
+            inner_in_b();
+            inner_in_a();
+            inner_out();
+            round = 45;
+            inner_mixer();
         }
     }
 }

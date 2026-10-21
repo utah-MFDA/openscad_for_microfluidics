@@ -3,7 +3,7 @@ function mixer_ports(size, lead, angle) =
     let (input_a = [[size.x/2,0, size.y/2], [0,-1,0], [0,0,1]])
     let (input_b = [[size.x/2+length*sin(angle), 0, size.y/2], [0,-1,0], [0,0,1]])
     let (output = [[size.x/2, length+2*lead, size.y/2], [0,1,0], [0,0,1]])
-    [input_a, input_b, output];
+    [output, input_a, input_b];
 
 function mixer_dimensions(size, lead, angle) =
     let (length = size.x*sin(angle)/(1-cos(angle)))
