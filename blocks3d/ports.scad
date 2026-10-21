@@ -191,8 +191,10 @@ function fluid_line_target_raw(port, io, port_config) =
     let (angle = atan2(port.y, port.x))
     let (io_spacing = io_offset == 0 ? 0
                         : (io_offset + size.x)/2)
-    let (collision_spacing = [ port.z*(size.x + collision_offset.x)/2,
-                                port.x*port.y*(size.y + collision_offset.y)/2 ])
+    let (collision_spacing = [ collision_offset.x == 0 ? 0 :
+                                    port.z*(size.x + collision_offset.x)/2,
+                               collision_offset.y == 0 ? 0:
+                                    port.x*port.y*(size.y + collision_offset.y)/2 ])
     let (offset = io_spacing + collision_spacing.x)
     let (side = [offset*cos(90 + angle),
                  offset*sin(90 + angle),
@@ -254,9 +256,31 @@ module port_demonstrator(port_config)
 // can remove problems when crossing the boundary
 function posang(a) = (modang(a) + 360) % 360;
 
-// Least squares regression on a single variable is the arithmetic mean
-// This minimizes the angle alignment between the component and exterior ports.
+// This minimizes the distance between the component and exterior ports.
 function minimize_angle(ports, anchors, port_config) =
+    // vectors u_i, v_i
+    // angle t, rotor r = cos(t/2) - sin(t/2)*x^y
+    // vector w_i = u_i - r*v_i*~r
+    // minimize sum of squares of length L = w_0**2 + ... + w_i**2
+    // check minim_ga.py for the sympy implementation.
+    // derivative simplifies to dL/dt = sum(u_i|v_i)*sin(t) + sum(u_i^v_i)*cos(t)
+    // min/max/saddle occurs when first derivative is zero
+    // when dL/dt = 0, simplifies to sin(t)/cos(t) = tan(t) = -sum(u_i^v_i)/sum(u_i|v_i)
+    // second derivative sign shows type
+
+    // sum of the inner products
+    let (inner = sum([for (i = [0:len(ports)-1]) 2*ports[i][0].x*anchors[i][0].x + 2*ports[i][0].y*anchors[i][0].y]))
+    // sum of the outer products
+    let (outer = sum([for (i = [0:len(ports)-1]) 2*ports[i][0].x*anchors[i][0].y - 2*ports[i][0].y*anchors[i][0].x]))
+    // first derivative zero
+    let (zero = atan2(-outer, inner))
+    // second derivative at that point
+    let (sign = inner*cos(zero) - outer*sin(zero))
+    // minimum if sign of second derivative is positive
+    // otherwise if negative (maximum), the minimum is 180 degrees out of phase
+    sign > 0 ? zero : zero + 180;
+
+function old_minimize_angle(ports, anchors, port_config) =
     let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
     // atan2 returns 0 if x=y=0, (top and bottom faces) which is
     // undefined, not sure what to do about it.
@@ -333,12 +357,12 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
 
     // check if external port lies above the face planes
     // inner product of the normal to the plane and the offset vector from normal origin
-    front = basis.y * (exterior - (faces.y + basis.y*margin)) > 0;
-    behind = -basis.y * (exterior + (faces.y + basis.y * margin)) > 0;
-    above = basis.z * (exterior - (faces.z + basis.z * margin)) > 0;
-    below = -basis.z * (exterior + (faces.z + basis.z * margin)) > 0;
-    right = basis.x * (exterior - (faces.x + basis.x * margin)) > 0;
-    left = -basis.x * (exterior + (faces.x + basis.x * margin)) > 0;
+    front = basis.y * (exterior - faces.y) > 0;
+    behind = -basis.y * (exterior + faces.y) > 0;
+    above = basis.z * (exterior - faces.z) > 0;
+    below = -basis.z * (exterior + faces.z) > 0;
+    right = basis.x * (exterior - faces.x) > 0;
+    left = -basis.x * (exterior + faces.x) > 0;
 
     start = port_tangent_scale(2*margin, component_target);
 

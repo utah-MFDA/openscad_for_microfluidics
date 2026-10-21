@@ -1,15 +1,24 @@
 include <BOSL2/std.scad>
 include <ports.scad>
 include <../components/mixer.scad>
-function reorder_inputs(y, a, b) =
+
+function reorder_inputs(output, input_a, input_b, port_config) =
+    // Eliminate the offsets, they would push points
+    // just around the other side and flip the order
+    let (simple_config = struct_set(struct_set(port_config,
+                                 "collision_offset", [0,0]),
+                                 "io_offset", 0))
+    let (y = fluid_line_output_target(output, simple_config))
+    let (a = fluid_line_input_target(input_a, simple_config))
+    let (b = fluid_line_input_target(input_b, simple_config))
     let (ports = [y, a, b])
     let (base = atan2(port_position(y).y, port_position(y).x))
     let (angles = [for (port = ports)
                     let (p = port_position(port))
                     posang(atan2(p.y, p.x) - base)])
-    [for (i = sortidx(angles)) ports[i]];
+    sortidx(angles);
 
-module block_mixer(input_a, input_b, output, port_config, mixer_angle=45, mixer_lead=4, sharpness=20, angle=undef, debug = false)
+module block_mixer(input_a, input_b, output, port_config, mixer_angle=45, mixer_lead=4, sharpness=10, angle=undef, round=1, debug = false)
 {
     // Parameter checks
     assert(is_flow_port(input_a));
@@ -37,13 +46,15 @@ module block_mixer(input_a, input_b, output, port_config, mixer_angle=45, mixer_
                         port_translate(-center_offset, c)];
 
     // swap order of inputs so that the order is counter-clockwise to match mixer order
-    output_target = fluid_line_output_target(output, port_config);
-    target_a = fluid_line_input_target(input_a, port_config);
-    target_b = fluid_line_input_target(input_b, port_config);
-    exterior_ports = reorder_inputs(output_target, target_a, target_b);
+    port_order = reorder_inputs(output, input_a, input_b, port_config);
+    ports = [
+        fluid_line_output_target(output, port_config),
+        fluid_line_input_target(input_a, port_config),
+        fluid_line_input_target(input_b, port_config)
+    ];
+    exterior_ports = [for (i = port_order) ports[i]];
 
     minim_angle = minimize_angle(exterior_ports, component_ports, port_config);
-    round = 1;
     round_angle = modang(round(posang(minim_angle)/round)*round);
     use_angle = (is_undef(angle) ? round_angle : angle);
 

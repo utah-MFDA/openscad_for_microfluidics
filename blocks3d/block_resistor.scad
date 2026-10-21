@@ -10,6 +10,7 @@ module block_resistor(flow_in, flow_out, port_config,
                       eps=1e-2,
                       sharpness = 20,
                       angle=undef,
+                      round=90,
                       debug=false)
 {
     // Parameter checks
@@ -46,7 +47,6 @@ module block_resistor(flow_in, flow_out, port_config,
 
     // Try and minimize the angle, round to the nearest 90 degree
     minim_angle = minimize_angle(exterior_ports, component_ports, port_config);
-    round = 180;
     round_angle = modang(round(posang(minim_angle)/round)*round);
     use_angle = (is_undef(angle) ? round_angle : angle);
 
