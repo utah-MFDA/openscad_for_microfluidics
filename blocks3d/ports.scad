@@ -342,7 +342,7 @@ module generic_path(shape, start, end, splinesteps=16, debug=false) {
                       normal=port_normal(start), last_normal=port_normal(end));
 }
 
-module fluid_line(shape, margin, dimensions, exterior_target, component_target, sharpness, debug=false) {
+module fluid_line(shape, margin, dimensions, exterior_target, component_target, sharpness=10, debug=false) {
     // this assumes that the face vector is perpendicular to the component face plane
     face = port_tangent(component_target);
     orientation = port_normal(component_target);
