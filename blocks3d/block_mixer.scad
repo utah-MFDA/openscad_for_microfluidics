@@ -18,7 +18,14 @@ function reorder_inputs(output, input_a, input_b, port_config) =
                     posang(atan2(p.y, p.x) - base)])
     sortidx(angles);
 
-module block_mixer(input_a, input_b, output, port_config, mixer_angle=45, mixer_lead=4, sharpness=10, angle=undef, round=1, debug = false)
+module block_mixer_failsafe(input_a, input_b, output, port_config, mixer_angle=45, mixer_lead=4, sharpness=10, angle=undef, round=1, debug = false, id="block_mixer")
+{
+    failsafe(id, [input_a, input_b], [output], port_config) {
+        block_mixer(input_a, input_b, output, port_config, mixer_angle, mixer_lead, sharpness, angle, round, debug, id);
+    }
+}
+
+module block_mixer(input_a, input_b, output, port_config, mixer_angle=45, mixer_lead=4, sharpness=10, angle=undef, round=1, debug = false, id="block_mixer")
 {
     // Parameter checks
     assert(is_flow_port(input_a));

@@ -1,5 +1,47 @@
 include <BOSL2/std.scad>
 include <ports.scad>
+module block_valve_failsafe(
+    flow_in,
+    flow_out,
+    control_in,
+    control_out,
+    port_config,
+    passthrough = [],
+    radius = 20,
+    control_depth = 6,
+    membrane_depth = 1,
+    flow_depth = 3,
+    bezier_center_sharpness = 8,
+    bezier_sharpness = 20,
+    bezier_step = 10,
+    bezier_clearance = 1,
+    bezier_countersink = 1,
+    bezier_io_spacing = 360/48,
+    id = "valve"
+)
+{
+    failsafe(inputs=[flow_in], outputs=[flow_out], port_config=port_config, id=id) {
+        block_valve(
+            flow_in,
+            flow_out,
+            control_in,
+            control_out,
+            port_config,
+            passthrough,
+            radius,
+            control_depth,
+            membrane_depth,
+            flow_depth,
+            bezier_center_sharpness,
+            bezier_sharpness,
+            bezier_step,
+            bezier_clearance,
+            bezier_countersink,
+            bezier_io_spacing,
+            id
+        );
+    }
+}
 
 module block_valve(
     // port connections
@@ -21,7 +63,7 @@ module block_valve(
     bezier_clearance = 1,
     bezier_countersink = 1,
     bezier_io_spacing = 360/48,
-    // interconnect parameters
+    id = "valve"
 )
 {
     // Configuration
@@ -40,10 +82,10 @@ module block_valve(
     assert (!(port_io_offset == 0 && flow_out == flow_in),
              "conflicting input/output flow ports");
     assert(control_in != control_out, "confliction input/output control ports");
-    assert(is_control_port(control_in));
+    assert(is_control_port(control_in), control_in);
     check_control_port(control_out);
 
-    center = [width/2, width/2, width/2];
+    center = cell_dimensions/2;
 
     module valve() {
         $fa = 360/48;
@@ -107,8 +149,8 @@ module block_valve(
         angle_vec = [cos(angle), sin(angle), 0];
         top_first_normal = -angle_vec;
         if (port == [0, 0, 1]) {
-            path(size, [start, center_sharpness*start_normal, last_sweep_normal],
-                       [target, sharpness*target_normal, last_sweep_normal ]);
+            path(size, [start, bezier_center_sharpness*start_normal, last_sweep_normal],
+                       [target, bezier_sharpness*target_normal, last_sweep_normal ]);
         } else if (port.z < 0) {
             end = radius+clearance+size.y/2;
             top_last_normal = angle_vec;
@@ -123,15 +165,15 @@ module block_valve(
             else bezier_sweep(square(size, center=debug_center), bridge, normal=top_last_normal);
             if (port == [0, 0, -1]) {
                 // bottom part
-                path(size, [bottom_bridge, sharpness*[0, 0, -1],top_last_normal],
-                           [target, sharpness*target_normal, [-1,0,0]]);
+                path(size, [bottom_bridge, bezier_sharpness*[0, 0, -1],top_last_normal],
+                           [target, bezier_sharpness*target_normal, [-1,0,0]]);
             } else{
                 path(size, [bottom_bridge, bezier_sharpness*[0, 0, -1],top_last_normal],
                            [target, bezier_sharpness*target_normal, last_sweep_normal]);
             }
         } else if (port.z == 0) {
             edge = [0, 0, clearance+size.y/2] + radius*angle_vec;
-            normal_len = min(bezier_sharpness, (norm(port)*width/2-radius)/2);
+            normal_len = min(bezier_sharpness, (norm(port)*cell_dimensions.x/2-radius)/2);
             path(size, [start, bezier_center_sharpness*start_normal,top_first_normal],
                        [edge, -bezier_center_sharpness*angle_vec, [0, 0, 1]]);
 
@@ -159,7 +201,7 @@ module block_valve(
         output_offset = [cos(angle) * radius, sin(angle) * radius, -flow_depth+size.y/2];
         start_normal = [cos(angle), sin(angle), 0];
         start = output_offset;
-        normal_len = min(sharpness, (norm(port)*width/2-radius)/2);
+        normal_len = min(sharpness, (norm(port)*cell_dimensions.x/2-radius)/2);
         translate(start)
         rotate([0, 0, angle])
         cube([countersink, size.x, size.y], center=true);
@@ -170,7 +212,7 @@ module block_valve(
             path(size, [bend_begin, sharpness*[0, 0, 1], start_normal],
                        [target, sharpness*target_normal, last_sweep_normal]);
         } else if (port == [0, 0, -1]) {
-            bend_begin = [0, 0, -valve_depth]+ radius+clearance+size.y/2*start_normal;
+            bend_begin = [0, 0, -valve_depth]+ (radius+clearance+size.y/2)*start_normal;
             path(size, [start, clearance*start_normal, [0,0,1]],
                        [bend_begin, valve_depth/2*[0,0,1], start_normal]);
             path(size, [bend_begin, sharpness*[0,0,-1], start_normal],
@@ -184,7 +226,7 @@ module block_valve(
 
         // outer boundary
         if (struct_val(port_config, "show_boundary")) {
-            %cube(width, center=true);
+            %cube(cell_dimensions, center=true);
         }
 
         // valve chambers
@@ -201,11 +243,11 @@ module block_valve(
         color("skyblue")
         fluid_line_output_junction(flow_out, port_config);
 
-        // control connections
-        color("green")
-        control_line(control_in[0], control_in[1]);
-        color("orange")
-        control_line(control_out[0], control_out[1]);
+        // // control connections
+        // color("green")
+        // control_line(control_in[0], control_in[1]);
+        // color("orange")
+        // control_line(control_out[0], control_out[1]);
     }
 
 }

@@ -214,11 +214,12 @@ function control_line_target_raw(face, offset, port_config) =
     let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
     let (top_spacing = struct_val(port_config, "top_spacing"))
     let (side_spacing = struct_val(port_config, "side_spacing"))
-    let (spacing = width * (face.z != 0 ? top_spacing : side_spacing))
+    // TODO wrong width
+    let (spacing = cell_dimensions.x * (face.z != 0 ? top_spacing : side_spacing))
     // positive or negative based sign of one-hot.
     let (dir = face.x + face.y + face.z)
     // place on face.
-    let (updown = (dir+1)*width/2-width/2)
+    let (updown = (dir+1)*cell_dimensions.x/2-cell_dimensions.x/2)
     // orthogonal bezier anchor
     let (normal = -face)
     // position on the face)
@@ -320,9 +321,9 @@ module bend(size, cross) {
 function bend_path(size) =
      [[0,0,0], [0, 0, size.y], [0, 0, size.y], [size.x, 0, size.y]];
 
-module path(size, start, end, splinesteps=16, debug=false, debug_center=false, clamp_tangent=false) {
+module path(size, start, end, splinesteps=16, debug=false, debug_center=false) {
     generic_path(square(size, center=!debug_center),
-                    start, end, splinesteps, debug, clamp_tangent);
+                    start, end, splinesteps, debug);
 }
 
 function path_clamp(start, end) =
@@ -418,96 +419,45 @@ module fluid_line(shape, margin, dimensions, exterior_target, component_target, 
         assert(false);
     }
 }
-/*
-function component_port_basis(face, orientation, dimensions) =
-    [cross(face, orientation), orientation, face];
 
-function component_port_faces(basis, dimensions) =
-    [v_mul(basis.x, dimensions/2), v_mul(basis.y, dimensions/2), v_mul(basis.z, dimensions/2)];
+module failsafe(id, inputs, outputs, port_config, safe=true)
+{
+    io_offset = struct_val(port_config, "io_offset");
+    in_safe = all([for (in = inputs) is_flow_port(in) && in != [0,0,0]]);
+    if (!in_safe) echo("Fail input invalid", id, inputs);
 
-function component_port_dimensions(face, orientation, dimensions) =
-    let (basis = component_port_basis(face, orientation, dimensions))
-    let (faces = component_port_faces(basis, dimensions))
-    [for (f = faces) sum(f)];
+    out_safe = all([for (out = outputs) is_flow_port(out) && out != [0,0,0]]);
+    if (!out_safe) echo("Fail output invalid", id, outputs);
 
-function face_turnaround(face, orientation, dimensions, side, margin) =
-    let (basis = component_port_basis(face, orientation, dimensions))
-    let (faces = component_port_faces(basis, dimensions))
-    let (relative = [for (f = faces) sum(f)])
-    let (edge = (relative.x+margin) * side.x + (relative.y+margin) * side.y)
-    [relative.z + edge, -margin*basis.z, basis.z];
+    in_collision = len(inputs) <= 1 || all([for (c = combinations(inputs)) c[0] != c[1]]);
+    if (!in_collision) echo("Fail input collision", id);
 
-function turnaround(shape, margin, dimensions, exterior_target, component_target, sharpness, debug=false) {
+    out_collision = len(outputs) <= 1 || all([for (c = combinations(outputs)) c[0] != c[1]]);
+    if (!out_collision) echo("Fail output collision", id);
 
-    // this assumes that the face vector is perpendicular to the component face plane
-    face = port_tangent(component_target);
-    orientation = port_normal(component_target);
-    // create a basis relative to the orientation of the component
-    basis = [cross(face, orientation), face, orientation];
-    faces = [basis.x*dimensions.x/2, basis.y*dimensions.y/2, basis.z*dimensions.z/2];
+    in_out_collision = io_offset == 0 || all([for (l = inputs, r = outputs) r != l]);
+    if (!in_out_collision) echo("Fail in/out collision", id);
 
-    // setup endpoint
-    exterior = port_position(exterior_target);
-    end = port_tangent_scale(sharpness, exterior_target);
-    turnarounds = [
-        // above
-        [faces.y + (basis.z * margin + faces.z), margin*basis.y, basis.z],
-        // right
-        [faces.y - (basis.z * margin + faces.z), margin*basis.y, basis.y],
-        // below
-        [faces.y + (basis.x * margin + faces.x), margin*basis.y, basis.z],
-        // left
-        [faces.y - (basis.x * margin + faces.x), margin*basis.y, basis.z],
-    ] ;
+    cell_dimensions = struct_val(port_config, "cell_dimensions");
+    module io_hint(i) {
+        start = [0,0,0];
+        end = v_mul(cell_dimensions, i);
+        color("red")
+        stroke([start, end], width=10);
+    }
 
-    // check if external port lies above the face planes
-    // inner product of the normal to the plane and the offset vector from normal origin
-    front = basis.y * (exterior - faces.y) > 0;
-    behind = -basis.y * (exterior + faces.y) > 0;
-    above = basis.z * (exterior - faces.z) > 0;
-    below = -basis.z * (exterior + faces.z) > 0;
-    right = basis.x * (exterior - faces.x) > 0;
-    left = -basis.x * (exterior + faces.x) > 0;
-
-    start = port_tangent_scale(margin, component_target);
-
-    if (front) {
-        start = port_tangent_scale(sharpness, component_target);
-        generic_path(shape, start, end, debug=debug);
-    } else if (above && !left) {
-        start2 = [start[0], start[1], -basis.z]];
-        corner = trunarounds[0];
-        generic_path(shape, start2, corner, debug=debug);
-        corner2 = [corner[0], -corner[1], basis.z];
-        generic_path(shape, corner2, end, debug=debug);
-    } else if (below && !right) {
-        corner = turnarounds[1];
-        generic_path(shape, start, corner, debug=debug);
-        corner2 = [corner[0], -corner[1], basis.z];
-        generic_path(shape, corner2, end, debug=debug);
-    } else if (right && !above) {
-        corner = turnarounds[2];
-        generic_path(shape, start, corner, debug=debug);
-        generic_path(shape, port_mirror(corner), end, debug=debug);
-    } else if (left && !below) {
-        corner = turnarounds[3];
-        generic_path(shape, start, corner, debug=debug);
-        generic_path(shape, port_mirror(corner), end, debug=debug);
-    } else if (behind) {
-        // completely behind, get around the back corner as well
-        corner = [faces.y + (basis.x * margin + faces.x),
-                    margin*basis.y,
-                    basis.z];
-        generic_path(shape, start, corner, debug=debug);
-        back = [-faces.y + (basis.x * margin + faces.x),
-                    margin*basis.y,
-                    basis.z];
-        generic_path(shape, port_mirror(corner), back, debug=debug);
-        generic_path(shape, port_mirror(back), end, debug=debug);
+    if (safe &&
+        in_safe &&
+        out_safe &&
+        in_collision &&
+        out_collision &&
+        in_out_collision) {
+        children();
     } else {
-        // degenerate case completely inside the component
-        assert(!(front || behind || below || above || right || left));
-        assert(false);
+        translate(cell_dimensions/2) {
+            %cube(cell_dimensions, center=true);
+            for (in = inputs) io_hint(in);
+            for (out = outputs) io_hint(out);
+        }
     }
 }
-*/

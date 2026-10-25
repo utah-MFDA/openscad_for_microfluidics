@@ -2,6 +2,23 @@ include <BOSL2/std.scad>
 include <ports.scad>
 include <../components/resistor.scad>
 
+module block_resistor_failsafe(flow_in, flow_out, port_config,
+                      blocks = 1,
+                      major_channel = [30, 30, 5],
+                      minor_channel = [10,10, 5],
+                      offset=6,
+                      eps=1e-2,
+                      sharpness = 20,
+                      angle=undef,
+                      round=90,
+                      debug=false,
+                      id="block_resistor")
+{
+    failsafe(id, [flow_in], [flow_out], port_config) {
+        block_resistor(flow_in, flow_out, port_config, blocks, major_channel, minor_channel, offset, eps, sharpness, angle, round, debug, id);
+    }
+}
+
 module block_resistor(flow_in, flow_out, port_config,
                       blocks = 1,
                       major_channel = [30, 30, 5],
@@ -11,7 +28,8 @@ module block_resistor(flow_in, flow_out, port_config,
                       sharpness = 20,
                       angle=undef,
                       round=90,
-                      debug=false)
+                      debug=false,
+                      id="block_resistor")
 {
     // Parameter checks
     assert(is_flow_port(flow_in));

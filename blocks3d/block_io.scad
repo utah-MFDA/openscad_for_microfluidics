@@ -2,16 +2,23 @@ include <../components/interconnect.scad>
 include <ports.scad>
 include <BOSL2/std.scad>
 
-module block_pinhole(connections, diameter, depth, cone, port_config, orientation = [0, 0, 1], sharpness=40)
+module block_pinhole_failsafe(connections, diameter, depth, cone, port_config, orientation = [0, 0, 1], sharpness=40, id="block_pinhole")
+{
+    failsafe(id, connections, [], port_config) {
+        block_pinhole(connections, diameter, depth, cone, port_config, orientation, sharpness, id);
+    }
+}
+
+module block_pinhole(connections, diameter, depth, cone, port_config, orientation = [0, 0, 1], sharpness=40, id="block_pinhole")
 {
     cell_dimensions = struct_val(port_config, "cell_dimensions");
     size = struct_val(port_config, "flow_cross_section");
     debug = struct_val(port_config, "debug");
     intersect_test = struct_val(port_config, "intersect_test");
 
-    assert(diameter < cell_dimensions.x && diameter < cell_dimensions.y);
-    assert(depth+cone < cell_dimensions.z);
-    assert(norm(orientation) == 1 && (orientation.x == 1 || orientation.y == 1 || orientation.z == 1));
+    assert(diameter < cell_dimensions.x && diameter < cell_dimensions.y, id);
+    assert(depth+cone < cell_dimensions.z, id);
+    assert(norm(orientation) == 1 && (orientation.x == 1 || orientation.y == 1 || orientation.z == 1), id);
     assert(orientation == [0,0,1], "TODO rotation not implemented");
 
     if (!intersect_test) {
@@ -30,7 +37,7 @@ module block_pinhole(connections, diameter, depth, cone, port_config, orientatio
             for (connection = connections) {
                 normal = connection != [0,0,-1] ? connection : [-1,0,0];
                 hole_target = [orientation*(cell_dimensions.z/2 - depth - cone), -orientation, normal];
-                assert(is_flow_port(connection));
+                assert(is_flow_port(connection), id);
                 fluid_line_input_junction(connection, port_config);
                 target = fluid_line_input_target(connection, port_config);
                 external = port_tangent_scale(sharpness, target);
