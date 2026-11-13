@@ -1,5 +1,103 @@
 use <../polychannel/polychannel.scad>
 use <orientation.scad>
+
+default_valve_squeeze_channel_taper = 5;
+
+function valve_squeeze_dimensions(membrane, chamber, ctrl_chamber, channel, channel_taper=default_valve_squeeze_channel_taper) =
+    let (ctrl_chamber_top = ctrl_chamber[0])
+    let (ctrl_chamber_side = ctrl_chamber[1])
+    let (ctrl_chamber_bottom = ctrl_chamber[2])
+    [
+        2*membrane_width + chamber_width + 2*ctrl_chamber_side,
+        chamber_length + 2*channel_taper,
+        2*membrane_height + chamber_height + ctrl_chamber_top + ctrl_chamber_bottom
+    ];
+
+function valve_squeeze_flow_ports(membrane, chamber, ctrl_chamber, channel, channel_taper=default_valve_squeeze_channel_taper) =
+    [[[0, chamber.z/2 + channel_taper, 0], [0, 1, 0], [0, 0, 1]],
+     [[0, -(chamber.z/2 + channel_taper), 0], [0, -1, 0], [0,0,1]]];
+
+/*
+ * membrane: [side thickness, top/bottom thickness]
+ * chamber: [width, height, length]
+ * ctrl_chamber: [top, bottom, side, length]
+ * channel: [width, height]
+ * channel_taper: length
+*/
+module valve_squeeze(membrane, chamber, ctrl_chamber, channel, channel_taper=default_valve_squeeze_channel_taper )
+{
+    membrane_width = membrane.x;
+    membrane_height = membrane.y;
+
+    chamber_width = chamber.x;
+    chamber_height = chamber.y;
+    chamber_length = chamber.z;
+    chamber_cross = [chamber_width, chamber_height];
+
+    ctrl_chamber_top = ctrl_chamber[0];
+    ctrl_chamber_side = ctrl_chamber[1];
+    ctrl_chamber_bottom = ctrl_chamber[2];
+    ctrl_chamber_length = ctrl_chamber[3];
+
+    assert(chamber_length >= ctrl_chamber_length);
+
+    membrane_cutout = [
+        2*membrane_width + chamber_width,
+        chamber_length,
+        2*membrane_height + chamber_height];
+
+    chamber_dimensions = [chamber_width, chamber_length, chamber_height];
+
+    ctrl_chamber_dimensions = [
+        membrane_cutout.x + 2*ctrl_chamber_side,
+        ctrl_chamber_length,
+        membrane_cutout.y + ctrl_chamber_top + ctrl_chamber_bottom];
+
+    ctrl_chamber_offset = [ 0, 0, (ctrl_chamber_top - ctrl_chamber_bottom)/2];
+
+    // Control chamber
+    difference() {
+        translate(ctrl_chamber_offset)
+        cube(ctrl_chamber_dimensions, center=true);
+        cube(membrane_cutout, center=true);
+    }
+
+    // Fluid chamber
+    union() {
+        cube(chamber_dimensions, center=true);
+        if (channel_taper > 0) {
+            translate([0, -chamber_length/2, 0])
+            rotate([90, 0, 0])
+            prismoid(chamber_cross, channel, channel_taper);
+            translate([0, chamber_length/2+channel_taper, 0])
+            rotate([90, 0, 0])
+            prismoid(channel, chamber_cross, channel_taper);
+        }
+    }
+
+    module prismoid(bottom, top, h)
+    {
+        points = [
+          [ -bottom.x/2, -bottom.y/2, 0 ],
+          [  bottom.x/2, -bottom.y/2, 0 ],
+          [  bottom.x/2,  bottom.y/2, 0 ],
+          [ -bottom.x/2,  bottom.y/2, 0 ],
+          [ -top.x/2, -top.y/2, h ],
+          [  top.x/2, -top.y/2, h ],
+          [  top.x/2,  top.y/2, h ],
+          [ -top.x/2,  top.y/2, h ]];
+
+        faces = [
+          [0,1,2,3],  // bottom
+          [4,5,1,0],  // front
+          [7,6,5,4],  // top
+          [5,6,2,1],  // right
+          [6,7,3,2],  // back
+          [7,4,0,3]]; // left
+        polyhedron(points, faces);
+    }
+}
+
 /**
  * mem_th: membrane thickness in layers.
  * fl_chm_h: fluid chamber height in layers.
@@ -89,5 +187,3 @@ module p_squeeze_valve(xpos, ypos, zpos, orientation,
         pn_ch_w, pn_pad, pn_len, pn_bttm_chm_h,
         chan_h, in_chan_h, out_chan_h, chan_w, shape);
 }
-
-p_squeeze_valve(0,0,0,"N",4,8);
