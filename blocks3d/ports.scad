@@ -19,6 +19,7 @@ function create_port_config(
     top_spacing = [3/16, 3/8],
     side_spacing = [1/4, 1/4],
     minimum_thickness = 4,
+    min_junction_length = 2,
     debug = false,
     show_boundary=false,
     intersect_test=false) = struct_set([], [
@@ -32,6 +33,7 @@ function create_port_config(
     "debug", debug,
     "show_boundary", show_boundary,
     "minimum_thickness", minimum_thickness,
+    "min_junction_length", min_junction_length,
     "intersect_test", intersect_test
 ]);
 
@@ -67,6 +69,15 @@ function vecrotate_xy(a) = [
 function port_rotate_xy(angle_xy, target) =
     let (transform = vecrotate_xy(angle_xy))
     [for (t = target) t*transform];
+
+function port_to_face(port) =
+    norm(port) == 1 ? port
+    : port.z ? [0, 0, port.z]
+    : [port.x - port.y, port.x + port.y, 0]/2;
+
+function azimuth(v) =
+    let (xy = atan2(v.y, v.x))
+    [xy, atan2(v.z, xy)];
 
 module check_flow_port(port) {
     assert(len(port) == 3, "incorrect flow port components");
@@ -106,7 +117,7 @@ module check_control_port(port) {
     assert(abs(offset.y) == 1, "face y offset must be 1");
 }
 
-// I can't get these to work as functions
+// I can't get these to work as functions - if you don't assign to a return value, it looks for module with that name instead.
 function assert_control_port(port) =
     assert(len(port) == 2, "control port struct must have two components")
     let (face = port[0], offset = port[1])
@@ -153,27 +164,30 @@ module fluid_line_junction(port, io, port_config) {
     size = struct_val(port_config, "flow_cross_section");
     a = fluid_line_target(port, io, port_config);
     b = fluid_line_target_raw(port, io, port_config);
-    generic_path(square(size, center=true), port_tangent_scale(-1, a), b, splinesteps=2);
-    // path(size, port_tangent_scale(-1, a), b, splinesteps=2);
+    min_length = struct_val(port_config, "min_junction_length");
+    if (port_position(a) != port_position(b)) {
+        generic_path(square(size, center=true), port_tangent_scale(-1, a), b, splinesteps=2);
+    }
 }
 
-function fluid_line_input_target(port, port_config, min_length=2) =
-    fluid_line_target(port, 1, port_config, min_length);
+function fluid_line_input_target(port, port_config) =
+    fluid_line_target(port, 1, port_config);
 
-function fluid_line_output_target(port, port_config, min_length=2) =
-    fluid_line_target(port, -1, port_config, min_length);
+function fluid_line_output_target(port, port_config) =
+    fluid_line_target(port, -1, port_config);
 
 // This is the point that defines the junction connection point where cells should attach lines.
-function fluid_line_target(port, io, port_config, min_length=2) =
+function fluid_line_target(port, io, port_config) =
     let (size = struct_val(port_config, "flow_cross_section"))
     let (cell_dimensions = struct_val(port_config, "cell_dimensions"))
     let (io_offset = struct_val(port_config, "io_offset"))
     let (collision_offset = struct_val(port_config, "collision_offset"))
+    let (min_length = struct_val(port_config, "min_junction_length"))
     let (target = fluid_line_target_raw(port, io, port_config))
     // corners and edges parallel to Z-axis need extra length for orthogonal crossing
-    let (ch_width = io_offset > 0 ? 2*size.x + 2*io_offset : size.x)
+    let (ch_width = io_offset > 0 ? 2*size.x + io_offset : size.x)
     let (length =  abs(port.x) + abs(port.y) == 2
-                    ? collision_offset.x + ch_width : 0)
+                    ? (abs(port.z)+1)*ch_width/2 : 0)
     [target[0] + (min_length + length) * unit(target[1]), target[1], target[2]];
 
 function round_div2(io, v) = (io*v + v%2)/2;
@@ -190,12 +204,13 @@ function fluid_line_target_raw(port, io, port_config) =
     let (base = v_mul(cell_dimensions/2, port))
     let (angle = atan2(port.y, port.x))
     let (io_spacing = io_offset == 0 ? 0
-                        : (io_offset + size.x)/2)
+                        : io*(io_offset + size.x)/2)
     let (collision_spacing = [ collision_offset.x == 0 ? 0 :
                                     port.z*(size.x + collision_offset.x)/2,
                                collision_offset.y == 0 ? 0:
                                     port.x*port.y*(size.y + collision_offset.y)/2 ])
-    let (offset = io_spacing + collision_spacing.x)
+
+    let (offset = io_spacing + (io_offset == 0 ? 1 : 2)*collision_spacing.x)
     let (side = [offset*cos(90 + angle),
                  offset*sin(90 + angle),
                  collision_spacing.y])
@@ -295,7 +310,6 @@ function old_minimize_angle(ports, anchors, port_config) =
     // If there are two points opposite each other the magnitude of each
     // is larger but the regression cancels out and you get zero, and
     // the angle is flipped.
-    echo(diff)
     let (stuck = (max(diff) - min(diff)) > 180 ? 180 : 0)
     let (solve = linear_solve(transpose([repeat(1, len(ports))]),
                               transpose([diff])))
